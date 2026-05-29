@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>打地鼠</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+      background:
+        radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.75) 0 7%, transparent 8%),
+        linear-gradient(180deg, #8fd3ff 0%, #bcecff 42%, #76c65c 43%, #4f9b3d 100%);
+    }
+
+    .game {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      min-height: 420px;
+      isolation: isolate;
+    }
+
+    .game::before {
+      content: "";
+      position: absolute;
+      inset: 43% 0 0;
+      background:
+        radial-gradient(ellipse at 12% 88%, rgba(34, 88, 30, 0.24) 0 10%, transparent 11%),
+        radial-gradient(ellipse at 78% 78%, rgba(34, 88, 30, 0.22) 0 9%, transparent 10%),
+        repeating-linear-gradient(105deg, transparent 0 16px, rgba(255, 255, 255, 0.11) 17px 20px),
+        linear-gradient(180deg, #6ac04f 0%, #3f8e37 100%);
+      z-index: 0;
+    }
+
+    .game::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: clamp(160px, 22vw, 260px);
+      height: clamp(42px, 7vw, 74px);
+      border-radius: 50%;
+      background: radial-gradient(ellipse, #2f1d14 0%, #51301e 54%, rgba(43, 26, 16, 0) 72%);
+      filter: blur(1px);
+      transform: translate(-50%, 42px);
+      opacity: 0.72;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .title {
+      position: absolute;
+      top: clamp(26px, 6vh, 52px);
+      left: 50%;
+      z-index: 2;
+      width: min(88vw, 680px);
+      margin: 0;
+      color: #243018;
+      font-size: clamp(28px, 5vw, 56px);
+      font-weight: 900;
+      letter-spacing: 0;
+      text-align: center;
+      text-shadow: 0 3px 0 rgba(255, 255, 255, 0.55);
+      transform: translateX(-50%);
+      user-select: none;
+    }
+
+    .hint {
+      position: absolute;
+      top: clamp(86px, 16vh, 126px);
+      left: 50%;
+      z-index: 2;
+      width: min(86vw, 520px);
+      margin: 0;
+      color: #344028;
+      font-size: clamp(15px, 2.2vw, 20px);
+      font-weight: 700;
+      text-align: center;
+      text-shadow: 0 2px 0 rgba(255, 255, 255, 0.36);
+      transform: translateX(-50%);
+      user-select: none;
+    }
+
+    .hud {
+      position: absolute;
+      top: clamp(132px, 22vh, 172px);
+      left: 50%;
+      z-index: 4;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(86px, 1fr));
+      gap: 8px;
+      width: min(92vw, 620px);
+      transform: translateX(-50%);
+    }
+
+    .hud-item {
+      min-height: 58px;
+      padding: 8px 10px;
+      border: 2px solid rgba(42, 70, 28, 0.22);
+      border-radius: 8px;
+      color: #203012;
+      background: rgba(255, 255, 255, 0.58);
+      box-shadow: 0 8px 20px rgba(45, 92, 41, 0.13);
+      text-align: center;
+      backdrop-filter: blur(6px);
+    }
+
+    .hud-label {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 12px;
+      font-weight: 800;
+      color: #4d6436;
+    }
+
+    .hud-value {
+      display: block;
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .level-panel {
+      position: absolute;
+      left: 50%;
+      bottom: clamp(108px, 17vh, 152px);
+      z-index: 4;
+      width: min(92vw, 640px);
+      padding: 16px;
+      border: 2px solid rgba(41, 80, 30, 0.2);
+      border-radius: 8px;
+      color: #203012;
+      background: rgba(255, 255, 255, 0.62);
+      box-shadow: 0 18px 32px rgba(38, 74, 32, 0.2);
+      text-align: center;
+      transform: translateX(-50%);
+      backdrop-filter: blur(7px);
+    }
+
+    .level-panel.is-hidden {
+      display: none;
+    }
+
+    .level-title {
+      margin: 0 0 12px;
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .levels {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .level-button {
+      min-height: 54px;
+      border: 0;
+      border-radius: 8px;
+      color: #ffffff;
+      background: linear-gradient(180deg, #4c9f3f 0%, #2f7330 100%);
+      box-shadow: 0 5px 0 #1d5223, 0 10px 16px rgba(34, 86, 32, 0.22);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 900;
+    }
+
+    .level-button small {
+      display: block;
+      margin-top: 2px;
+      font-size: 11px;
+      font-weight: 800;
+      opacity: 0.86;
+    }
+
+    .level-button:hover,
+    .level-button:focus-visible {
+      background: linear-gradient(180deg, #68b958 0%, #35843a 100%);
+      outline: 4px solid rgba(255, 255, 255, 0.65);
+      outline-offset: 2px;
+    }
+
+    .cloud {
+      position: absolute;
+      width: 140px;
+      height: 44px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.82);
+      box-shadow:
+        34px -16px 0 6px rgba(255, 255, 255, 0.82),
+        74px -5px 0 10px rgba(255, 255, 255, 0.82);
+      opacity: 0.85;
+      pointer-events: none;
+    }
+
+    .cloud.one {
+      top: 15%;
+      left: 8%;
+      animation: floatCloud 18s linear infinite alternate;
+    }
+
+    .cloud.two {
+      top: 9%;
+      right: 15%;
+      transform: scale(0.72);
+      animation: floatCloud 22s linear infinite alternate-reverse;
+    }
+
+    .mole-button {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      z-index: 3;
+      width: 96px;
+      height: 112px;
+      padding: 0;
+      border: 0;
+      color: transparent;
+      background: transparent;
+      filter: drop-shadow(0 18px 12px rgba(35, 26, 14, 0.3));
+      cursor: pointer;
+      transform: translate(-50%, -50%);
+      animation: idleBounce 1.15s ease-in-out infinite;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .mole-button.is-hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .mole-image {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center center;
+      pointer-events: none;
+    }
+
+    .mole-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+
+    .mole-button.jumping {
+      animation: escapePop 0.22s ease-out;
+    }
+
+    .mole-button:focus-visible {
+      outline: 5px solid rgba(255, 255, 255, 0.85);
+      outline-offset: 8px;
+    }
+
+    .grass {
+      position: absolute;
+      bottom: -10px;
+      z-index: 2;
+      width: 100%;
+      height: 90px;
+      background:
+        repeating-linear-gradient(82deg, transparent 0 14px, rgba(35, 103, 36, 0.45) 15px 18px),
+        linear-gradient(180deg, rgba(93, 184, 61, 0) 0%, #2f7931 100%);
+      pointer-events: none;
+    }
+
+    @keyframes idleBounce {
+      0%,
+      100% {
+        transform: translate(-50%, -50%) translateY(0);
+      }
+
+      50% {
+        transform: translate(-50%, -50%) translateY(-7px);
+      }
+    }
+
+    @keyframes escapePop {
+      0% {
+        transform: translate(-50%, -50%) scale(0.72) rotate(-7deg);
+      }
+
+      70% {
+        transform: translate(-50%, -50%) scale(1.08) rotate(4deg);
+      }
+
+      100% {
+        transform: translate(-50%, -50%) scale(1);
+      }
+    }
+
+    @keyframes floatCloud {
+      from {
+        translate: -12px 0;
+      }
+
+      to {
+        translate: 36px 0;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .game {
+        min-height: 100svh;
+      }
+
+      .hud {
+        top: 126px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .hud-item {
+        min-height: 48px;
+        padding: 7px 8px;
+      }
+
+      .hud-value {
+        font-size: 18px;
+      }
+
+      .level-panel {
+        bottom: 92px;
+        padding: 12px;
+      }
+
+      .levels {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .mole-button {
+        width: 78px;
+        height: 92px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="game" aria-label="打地鼠游戏">
+    <h1 class="title">打地鼠</h1>
+    <p class="hint" id="hint">选择关卡后，在 30 秒内打到指定数量的红色地鼠。</p>
+    <section class="hud" aria-label="关卡状态">
+      <div class="hud-item">
+        <span class="hud-label">关卡</span>
+        <span class="hud-value" id="levelValue">-</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">目标</span>
+        <span class="hud-value" id="targetValue">-</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">已打中</span>
+        <span class="hud-value" id="hitsValue">0</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">剩余时间</span>
+        <span class="hud-value" id="timeValue">30s</span>
+      </div>
+    </section>
+    <section class="level-panel" id="levelPanel" aria-label="选择关卡">
+      <h2 class="level-title">选择关卡</h2>
+      <div class="levels">
+        <button class="level-button" type="button" data-level="1">第1关<small>5只 / 30s</small></button>
+        <button class="level-button" type="button" data-level="2">第2关<small>8只 / 30s</small></button>
+        <button class="level-button" type="button" data-level="3">第3关<small>11只 / 30s</small></button>
+        <button class="level-button" type="button" data-level="4">第4关<small>13只 / 30s</small></button>
+        <button class="level-button" type="button" data-level="5">第5关<small>16只 / 30s</small></button>
+        <button class="level-button" type="button" data-level="6">第6关<small>19只 / 30s</small></button>
+        <button class="level-button" type="button" data-level="7">第7关<small>22只 / 30s</small></button>
+        <button class="level-button" type="button" data-level="8">第8关<small>24只 / 30s</small></button>
+        <button class="level-button" type="button" data-level="9">第9关<small>27只 / 30s</small></button>
+        <button class="level-button" type="button" data-level="10">第10关<small>30只 / 30s</small></button>
+      </div>
+    </section>
+    <div class="cloud one"></div>
+    <div class="cloud two"></div>
+    <button class="mole-button is-hidden" id="mole" type="button" aria-label="抓住红色地鼠按钮">
+      <img class="mole-image" src="assets/cartoon-mole.png?v=2" alt="">
+      <span class="mole-label">抓我</span>
+    </button>
+    <div class="grass"></div>
+  </main>
+
+  <script>
+    const mole = document.querySelector("#mole");
+    const hint = document.querySelector("#hint");
+    const levelPanel = document.querySelector("#levelPanel");
+    const levelButtons = document.querySelectorAll(".level-button");
+    const levelValue = document.querySelector("#levelValue");
+    const targetValue = document.querySelector("#targetValue");
+    const hitsValue = document.querySelector("#hitsValue");
+    const timeValue = document.querySelector("#timeValue");
+    const padding = 72;
+    const totalSeconds = 30;
+    const escapeDelayMs = 400;
+    const levels = Array.from({ length: 10 }, (_, index) => ({
+      number: index + 1,
+      target: Math.round(5 + index * (25 / 9))
+    }));
+    let currentLevel = levels[0];
+    let hits = 0;
+    let timeLeft = totalSeconds;
+    let timerId = null;
+    let escapeTimeoutId = null;
+    let isPlaying = false;
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    function randomBetween(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function clearPendingEscape() {
+      clearTimeout(escapeTimeoutId);
+      escapeTimeoutId = null;
+    }
+
+    function updateHud() {
+      levelValue.textContent = currentLevel.number;
+      targetValue.textContent = `${currentLevel.target}只`;
+      hitsValue.textContent = hits;
+      timeValue.textContent = `${timeLeft}s`;
+    }
+
+    function getGrassPlayArea(halfWidth, halfHeight) {
+      const grassTop = window.innerHeight * 0.43;
+      const grassBottomInset = 88;
+      const top = Math.max(grassTop + halfHeight + 16, window.innerHeight * 0.5);
+      const bottom = window.innerHeight - grassBottomInset - halfHeight;
+      const left = padding + halfWidth;
+      const right = window.innerWidth - padding - halfWidth;
+
+      return {
+        left,
+        right: Math.max(left, right),
+        top,
+        bottom: Math.max(top, bottom)
+      };
+    }
+
+    function placeMoleAwayFrom(cursorX, cursorY) {
+      const rect = mole.getBoundingClientRect();
+      const halfWidth = rect.width / 2;
+      const halfHeight = rect.height / 2;
+      const playArea = getGrassPlayArea(halfWidth, halfHeight);
+      let nextX = window.innerWidth / 2;
+      let nextY = playArea.top;
+
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        nextX = randomBetween(playArea.left, playArea.right);
+        nextY = randomBetween(playArea.top, playArea.bottom);
+
+        if (Math.hypot(nextX - cursorX, nextY - cursorY) > 180) {
+          break;
+        }
+      }
+
+      mole.classList.remove("jumping");
+      void mole.offsetWidth;
+      mole.style.left = `${clamp(nextX, playArea.left, playArea.right)}px`;
+      mole.style.top = `${clamp(nextY, playArea.top, playArea.bottom)}px`;
+      mole.classList.add("jumping");
+    }
+
+    function moveMoleAway(event) {
+      if (!isPlaying || escapeTimeoutId !== null) {
+        return;
+      }
+
+      const cursorX = event.clientX;
+      const cursorY = event.clientY;
+
+      escapeTimeoutId = window.setTimeout(() => {
+        escapeTimeoutId = null;
+
+        if (isPlaying) {
+          placeMoleAwayFrom(cursorX, cursorY);
+        }
+      }, escapeDelayMs);
+    }
+
+    function endLevel(didWin) {
+      clearInterval(timerId);
+      clearPendingEscape();
+      timerId = null;
+      isPlaying = false;
+      mole.classList.add("is-hidden");
+      levelPanel.classList.remove("is-hidden");
+      hint.textContent = didWin
+        ? `第 ${currentLevel.number} 关通过！可以选择下一关继续挑战。`
+        : `第 ${currentLevel.number} 关还差 ${Math.max(currentLevel.target - hits, 0)} 只，再来一次。`;
+      updateHud();
+
+      window.setTimeout(() => {
+        alert(didWin ? `恭喜通过第 ${currentLevel.number} 关！` : "时间到，再试一次！");
+      }, 40);
+    }
+
+    function tickTimer() {
+      timeLeft -= 1;
+      updateHud();
+
+      if (timeLeft <= 0) {
+        endLevel(false);
+      }
+    }
+
+    function startLevel(levelNumber) {
+      currentLevel = levels.find((level) => level.number === levelNumber) || levels[0];
+      hits = 0;
+      timeLeft = totalSeconds;
+      isPlaying = true;
+      clearInterval(timerId);
+      clearPendingEscape();
+      timerId = window.setInterval(tickTimer, 1000);
+      levelPanel.classList.add("is-hidden");
+      mole.classList.remove("is-hidden");
+      hint.textContent = `第 ${currentLevel.number} 关：30 秒内打到 ${currentLevel.target} 只地鼠。`;
+      updateHud();
+      centerMole();
+    }
+
+    function hitMole() {
+      if (!isPlaying) {
+        return;
+      }
+
+      clearPendingEscape();
+      hits += 1;
+      updateHud();
+
+      if (hits >= currentLevel.target) {
+        endLevel(true);
+        return;
+      }
+
+      const rect = mole.getBoundingClientRect();
+      placeMoleAwayFrom(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    }
+
+    function centerMole() {
+      mole.style.left = `${window.innerWidth / 2}px`;
+      const rect = mole.getBoundingClientRect();
+      const playArea = getGrassPlayArea(rect.width / 2, rect.height / 2);
+      mole.style.top = `${playArea.top}px`;
+    }
+
+    levelButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        startLevel(Number(button.dataset.level));
+      });
+    });
+
+    mole.addEventListener("mouseover", moveMoleAway);
+    mole.addEventListener("click", hitMole);
+
+    window.addEventListener("resize", centerMole);
+    centerMole();
+    updateHud();
+  </script>
+</body>
+</html>
